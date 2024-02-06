@@ -2,15 +2,16 @@ import subprocess
 from datetime import datetime, timedelta
 import shutil
 import os
+import requests
 
 # Path to your local git repository
-repo_path = "/home/sumith/Desktop/Workspace/push-website/"
+repo_path = "/home/ubuntu/push-website"
 # Path to the local directory where you want to store/update the files
-local_training_data_dir = "/home/sumith/Desktop/Workspace/push-ai-chat/ai-python-code/Training-data"
+local_training_data_dir = "/home/ubuntu/push-ai-chat/ai-python-code/Training-data"
 # Path to the 'storage' directory that needs to be deleted
-storage_dir_path = "/home/sumith/Desktop/Workspace/push-ai-chat/ai-python-code/storage"
+storage_dir_path = "/home/ubuntu/push-ai-chat/ai-python-code/storage"
 # Path to the training script
-training_script_path = "/home/sumith/Desktop/Workspace/push-ai-chat/ai-python-code/training.py"
+training_script_path = "/home/ubuntu/push-ai-chat/ai-python-code/training.py"
 
 def get_date_7_days_ago():
     """Calculate the date for 7 days ago."""
@@ -32,7 +33,8 @@ def list_changed_files_in_past_week(repo_path):
             update_local_file(repo_path, file_path, local_training_data_dir)
     else:
         print("No files have been changed in the last 7 days.")
-
+    return changed_files
+	
 def update_local_file(repo_path, file_path, local_dir):
     """Update or add the file in the local directory based on the repository."""
     source_path = os.path.join(repo_path, file_path)
@@ -68,10 +70,26 @@ def restart_pm2_process(process_id):
     except subprocess.CalledProcessError as e:
         print(f"Failed to restart PM2 process with error: {e}")
 
+def send_slack_message(webhook_url, message):
+    """Send a message to a Slack channel."""
+    headers = {'Content-Type': 'application/json'}
+    data = {"text": message}
+    response = requests.post(webhook_url, json=data, headers=headers)
+    if response.status_code == 200:
+        print("Message sent to Slack successfully.")
+    else:
+        print(f"Failed to send message to Slack. Status code: {response.status_code}")
+
 if __name__ == "__main__":
     print("Starting the automated data fetching and processing script...")
-    list_changed_files_in_past_week(repo_path)
+    changed_files = list_changed_files_in_past_week(repo_path)  # Capture the returned set of changed files
     delete_storage_directory(storage_dir_path)
     run_training_script(training_script_path)
     restart_pm2_process("1")
     print("Script execution completed.")
+
+    # Prepare and send a message to Slack
+    webhook_url = ""  # Replace with your actual Slack Webhook URL
+    changed_files_count = len(changed_files)  # Determine the number of changed files
+    message = f"1. {changed_files_count} files changed last week.\n2. Fetched and updated the Training-data folder.\n3. New storage folder generated!\n4.Server restarted."
+    send_slack_message(webhook_url, message)
