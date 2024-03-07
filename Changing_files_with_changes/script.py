@@ -14,18 +14,31 @@ def get_date_7_days_ago():
     return seven_days_ago.strftime('%Y-%m-%d')
 
 def list_changed_files_in_past_week(repo_path):
-    """List names of files changed from 7 days ago to today and update local directory."""
+    """List names of files changed from 7 days ago to today, explicitly on the main branch."""
     date_7_days_ago = get_date_7_days_ago()
+    # Explicitly specifying the branch now
+    branch = "main"
+    
+    # Constructing the git log command to get changes from 7 days ago
     command = [
-        "git", "-C", repo_path, "log", "--name-only", "--since", date_7_days_ago, "--pretty=format:", "--", "docs"
+        "git", "-C", repo_path, "log", branch, "--name-only", "--since", date_7_days_ago, "--pretty=format:", "--", "docs"
     ]
+    
+    # Execute the git log command
     result = subprocess.run(command, capture_output=True, text=True)
-    changed_files = set(result.stdout.strip().split('\n'))
-    print(f"Files changed from 7 days ago ({date_7_days_ago}) to today:")
-    for file_path in changed_files:
-        if file_path:  # Avoid processing empty lines
-            print(file_path)
-            update_local_file(repo_path, file_path, local_training_data_dir)
+    if result.returncode == 0:  # Successfully executed command
+        if result.stdout:
+            changed_files = set(filter(None, result.stdout.strip().split('\n')))
+            if changed_files:
+                print(f"Files changed from 7 days ago ({date_7_days_ago}) to today in the {branch} branch:")
+                for file in changed_files:
+                    print(file)
+            else:
+                print(f"No changes detected from 7 days ago ({date_7_days_ago}) to today in the {branch} branch.")
+        else:
+            print(f"No changes detected from 7 days ago ({date_7_days_ago}) to today in the {branch} branch.")
+    else:
+        print("Error executing git command:", result.stderr)
 
 def update_local_file(repo_path, file_path, local_dir):
     """Update or add the file in the local directory based on the repository."""
